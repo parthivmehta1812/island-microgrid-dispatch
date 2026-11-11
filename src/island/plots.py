@@ -50,28 +50,34 @@ def plot_profiles(p: pd.DataFrame, path: Path) -> None:
 
 def plot_schedule(r: dict, path: Path, title: str) -> None:
     s = r["schedule"] / 1000
-    fig, ax = plt.subplots(2, 3, figsize=(13, 6.5), sharex=True)
-    ax = ax.ravel()
-    ax[0].plot(s.index, s["Power gen. 1 [W]"], color=COL["Gen 1"], lw=2, label="Generator 1 (dirty fossil)")
-    ax[0].plot(s.index, s["Power gen. 2 [W]"], color=COL["Gen 2"], lw=2, ls="--", label="Generator 2 (CCS)")
-    ax[0].set_title("Output of the generators"); ax[0].legend(fontsize=8)
-    ax[1].plot(s.index, s["Battery output power [W]"], color=COL["Battery"], lw=2, label="Output (discharge)")
-    ax[1].plot(s.index, s["Battery input power [W]"],  color=INK2,           lw=2, ls="--", label="Input (charge)")
-    ax[1].set_title("Battery input and output"); ax[1].legend(fontsize=8)
-    ax[2].plot(s.index, s["Battery energy level [Wh]"], color=INK, lw=2)
-    ax[2].set_title("Energy level in the battery [kWh]")
-    ax[3].plot(s.index, s["Wind power [W]"],  color=COL["Wind"],  lw=2, label="Wind")
-    ax[3].plot(s.index, s["Solar power [W]"], color=COL["Solar"], lw=2, label="Solar")
-    ax[3].set_title("Output of the renewables"); ax[3].legend(fontsize=8)
-    ax[4].plot(s.index, s["Load [W]"], color=INK, lw=2)
-    ax[4].set_title("Load")
-    ax[5].plot(s.index, s["Total generation [W]"],  color=INK,        lw=2, label="Total generation")
-    ax[5].plot(s.index, s["Total consumption [W]"], color=COL["Wind"], lw=2, ls=":", label="Total consumption")
-    ax[5].set_title("Generation vs. consumption"); ax[5].legend(fontsize=8)
-    for a in ax:
-        a.set_ylabel("Power [kW]" if a is not ax[2] else "Energy [kWh]")
-    for a in ax[3:]:
+    t = s.index
+    fig, ax = plt.subplots(2, 4, figsize=(16, 7))
+    g1, g2 = s["Power gen. 1 [W]"], s["Power gen. 2 [W]"]
+    ax[0, 0].plot(t, g1, color=COL["Gen 1"], lw=2, label="Generator 1 (dirty fossil)")
+    ax[0, 0].plot(t, g2, color=COL["Gen 2"], lw=2, ls="--", label="Generator 2 (CCS)")
+    ax[0, 0].plot(t, g1 + g2, color=INK, lw=1.5, ls=":", label="Total power")
+    ax[0, 0].set_title("Output of the generators"); ax[0, 0].legend(fontsize=8)
+    ax[0, 1].plot(t, s["Battery output power [W]"], color=COL["Battery"], lw=2)
+    ax[0, 1].set_title("Output of the battery")
+    w, so = s["Wind power [W]"], s["Solar power [W]"]
+    ax[0, 2].plot(t, w,  color=COL["Wind"],  lw=2, label="Wind")
+    ax[0, 2].plot(t, so, color=COL["Solar"], lw=2, label="Solar")
+    ax[0, 2].plot(t, w + so, color=INK, lw=1.5, ls=":", label="Total power")
+    ax[0, 2].set_title("Output of the renewables"); ax[0, 2].legend(fontsize=8, loc="lower left")
+    ax[0, 3].plot(t, s["Total generation [W]"], color=INK, lw=2)
+    ax[0, 3].set_title("Total generation")
+    ax[1, 0].plot(t, s["Load [W]"], color=INK, lw=2)
+    ax[1, 0].set_title("Load")
+    ax[1, 1].plot(t, s["Battery input power [W]"], color=INK2, lw=2)
+    ax[1, 1].set_title("Input of the battery")
+    ax[1, 2].plot(t, s["Battery energy level [Wh]"], color=INK, lw=2)
+    ax[1, 2].set_title("Energy level in the battery")
+    ax[1, 3].plot(t, s["Total consumption [W]"], color=INK, lw=2)
+    ax[1, 3].set_title("Total consumption")
+    for a in ax.ravel():
         a.set_xlabel("Time of day [hours]")
+        a.set_ylabel("Power [kW]")
+    ax[1, 2].set_ylabel("Energy [kWh]")
     fig.suptitle(title, x=0.01, ha="left", fontweight="bold")
     _save(fig, path)
 
