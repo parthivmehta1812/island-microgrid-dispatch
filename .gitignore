@@ -6,14 +6,11 @@ __pycache__/
 *.pyd
 
 # Distribution / packaging
-.Python
 build/
 dist/
 *.egg-info/
 *.egg
-MANIFEST
 wheels/
-pip-wheel-metadata/
 
 # ── Virtual environments ──────────────────────────────────────────────────────
 .venv/
@@ -27,56 +24,41 @@ ENV/
 .pytest_cache/
 .coverage
 .coverage.*
-coverage.xml
 htmlcov/
-*.testlog
 
 # ── Jupyter ───────────────────────────────────────────────────────────────────
 .ipynb_checkpoints/
-*.ipynb_checkpoints
 
 # ── Type checking / linting ───────────────────────────────────────────────────
 .mypy_cache/
 .ruff_cache/
-.pyright/
 
 # ── Solver artefacts (Pyomo / HiGHS) ─────────────────────────────────────────
 *.lp
 *.mps
 *.sol
 *.ilp
-*.log
-pyomo_tmp*/
 highs.log
+pyomo_tmp*/
 
-# ── Generated results (output CSVs only) ─────────────────────────────────────
-# Plots go to assets/ (committed). Only ignore regeneratable data files here.
+# ── Generated data and results ───────────────────────────────────────────────
+# Plots go to assets/ (committed). All regeneratable data files are ignored.
+data/*.csv
 results/*.csv
-results/*.pdf
-
-# assets/ is committed — do NOT add it here
+results/*.txt
 
 # ── OS artefacts ─────────────────────────────────────────────────────────────
 .DS_Store
-.DS_Store?
 ._*
-.Spotlight-V100
-.Trashes
 Thumbs.db
-ehthumbs.db
-Desktop.ini
 
 # ── IDEs & editors ────────────────────────────────────────────────────────────
 .vscode/
 .idea/
 *.swp
-*.swo
 *~
-.project
-.pydevproject
 
 # ── Secrets / credentials ────────────────────────────────────────────────────
-*.env
 secrets.yaml
 secrets.yml
 credentials.json

@@ -1,146 +1,146 @@
-# Island Microgrid Dispatch: Cost vs. CO2 Scheduling with Pyomo
+# Optimal Scheduling of an Island Energy System (Python, Pyomo)
 
-An optimisation model that decides, hour by hour, how a small off-grid island should run two
-dispatchable generators and a battery alongside wind and solar, so that demand is met
-at the lowest cost. The model is then used to answer the operator's real questions:
+How much should each unit of a small island energy system produce every hour, so that demand
+is always met at the lowest cost? This project answers that with an optimisation model and
+then tests how the schedule changes when costs, limits and renewable output change.
 
-* What do inflexible generators actually cost us?
-* What changes if CO2 has a price?
-* Is a bigger battery worth it?
-* How much more do we pay for each tonne of CO2 we avoid?
+It follows the eight steps of the optimal-scheduling exercise in the TU Delft / DelftX course
+*Digitalization of Intelligent and Integrated Energy Systems*. I wrote all the code myself
+and ran it on my own 24-hour island profile.
 
-![Dispatch with always-on vs. switchable generators](assets/02_dispatch_A_vs_B.png)
-
----
-
-## The case: a fictional island
-
-| Asset | Size | Key parameters (assumptions) |
-|---|---|---|
-| Demand | ~150 homes + harbour/shop | 30–130 kW, evening peak, 4.7 MWh over 3 days |
-| Wind | 100 kW | smooth stochastic profile, calm / windy / moderate days |
-| Solar PV | 150 kWp | summer clear-sky shape × daily cloudiness |
-| Diesel generator (fossil) | 25–90 kW | €0.28/kWh, 0.75 kg CO2/kWh, ramp 30 kW/h, start-up €15 |
-| Gas generator with CCS | 25–80 kW | €0.33/kWh, 0.10 kg CO2/kWh, ramp 20 kW/h, start-up €25 |
-| Battery | 200 kWh / 50 kW | 95 % / 95 % efficiency, €0.02/kWh wear cost, SoC 10–100 % |
-
-Three days with different weather are simulated at hourly resolution: sunny and calm,
-windy with passing clouds, and overcast. Wind and solar together could supply about 82 %
-of the demand, but often at the wrong time.
-
-![Inputs](assets/01_inputs.png)
-
-All data is **synthetic and reproducible** (`src/microgrid/data.py`, fixed random seed). No
-measured or third-party data is used.
+![Step 5: optimal schedule](assets/step5_schedule_base.png)
 
 ---
 
-## The model
+## The system
 
-A linear program (LP) or, with unit commitment, a mixed-integer program (MILP), written in
-**Pyomo** and solved with the open-source **HiGHS** solver.
+| Unit | Parameters (course teaching values) |
+|---|---|
+| Generator 1 (dirty fossil) | €0.06/Wh, 10–40 kW, max. change 5 kW/h |
+| Generator 2 (CCS) | €0.12/Wh, 10–40 kW, max. change 5 kW/h |
+| Battery | €3.4/Wh charged or discharged, charge ≤ 7 kW, discharge ≤ 10 kW, 5–50 kWh, efficiency 96.78 % in / 94.78 % out |
+| Wind | turbines up to 33.6 kW |
+| Solar | small PV system, peak about 6 kW |
 
-**Minimise** fuel and O&M cost + CO2 cost + battery wear + start-up cost (+ a penalty for unserved load)
+The costs are the course's teaching values in **€ per Wh**, so the totals are much higher than
+real-world costs. They are kept on purpose, so the results can be compared with the course case.
 
-**Subject to**
-
-* **Power balance** every hour: generators + wind + solar + battery discharge = demand + battery charging
-* **Generator limits:** `Pmin · u ≤ P ≤ Pmax · u`, where `u` is fixed to 1 (always on) or a binary on/off decision
-* **Ramp limits:** output can only change by a set amount per hour (relaxed at start-up and shut-down)
-* **Battery:** state-of-energy balance with charge and discharge efficiencies, energy and power limits, no simultaneous charge and discharge (MILP), and a cyclic end state (it must end the period at least as full as it started)
-* **Renewables:** may be curtailed, never exceeded
-* **Optional CO2 cap** over the horizon, used to trace the cost–emission trade-off
-
-The full formulation is documented at the top of `src/microgrid/model.py`.
+**Model** (`island_dispatch.py`, Pyomo + HiGHS): minimise generator costs + battery costs, subject to
+* power balance every hour: generators + wind + solar + battery output = load + battery input
+* each generator stays between its minimum and maximum output and can change by at most 5 kW per hour
+* battery energy: next level = current level + 0.9678 × input − output / 0.9478, kept between 5 and 50 kWh
+* wind and solar are always used in full
 
 ---
 
-## Scenarios and results (3 days)
+## Step by step
 
-| Scenario | Total cost | CO2 | Renewable share | Curtailed RES |
-|---|---:|---:|---:|---:|
-| **A** Always-on generators (no unit commitment) | €1,112 | 1.53 t | 24 % | 2,715 kWh |
-| **B** Unit commitment (generators can switch off) | €420 | 0.98 t | 74 % | 391 kWh |
-| **C** B + CO2 price of €100/t | €510 | 0.21 t | 74 % | 391 kWh |
-| **D** C + double battery (400 kWh / 100 kW) | €395 | 0.10 t | 81 % | 46 kWh |
+### Step 1: Inspect the consumption and weather profile
+![Step 1](assets/step1_profiles.png)
 
-![Scenario comparison](assets/04_scenarios.png)
+The load is low at night (about 24 kW), rises in the morning, stays around 41–45 kW during the
+day and peaks at **57 kW around 19 h**, when people are home. Solar follows the sun and peaks
+around midday. Wind is low on this calm day. Together, wind and solar supply only **14 % of the
+daily load** and are below the load in every hour, so the generators and the battery are needed.
 
-### What the results show
+### Step 2: Build and solve the model
+The model finds the cheapest schedule for all 24 hours at once.
 
-1. **Flexibility matters more than fuel price.** When both generators have to stay online
-   at their minimum output, they push out renewable energy that is already there. 2.7 MWh of
-   wind and solar is curtailed and the renewable share is only 24 %. Letting the units switch
-   off cuts operating cost by **62 %** and triples the renewable share. Nothing new is built.
-2. **A CO2 price reorders the generators.** At €100/t, the CCS unit becomes cheaper per kWh
-   than the diesel unit (€0.34 vs. €0.355). The schedule switches over, and emissions fall by
-   **79 %** while the total cost (including the CO2 payment) rises by about a fifth.
-3. **Storage pays for itself in this setup.** Doubling the battery soaks up almost all the
-   remaining curtailment. It lifts the renewable share to 81 %, halves emissions again and
-   brings the cost **below** scenario B, even with the CO2 price included.
-4. **The trade-off is cheap at first, then steep.** Sweeping a CO2 cap shows that emissions
-   can drop by about **76 %** (0.98 → 0.23 t) for a **16 %** higher cost. The last tenth of a
-   tonne is the expensive part.
+### Step 3: Check the power balance and the limits
+* Generation equals consumption in every hour (consumption includes battery charging).
+* Generator 1 stays between 10 and 40 kW, and Generator 2 between 10 and 19 kW.
+* Neither changes by more than 5 kW per hour.
 
-![Cost vs. emissions trade-off](assets/05_pareto.png)
+### Step 4: Compare the costs of the generators
+| | Energy | Cost |
+|---|---:|---:|
+| Generator 1 (€0.06/Wh) | 538 kWh | €32,284 |
+| Generator 2 (€0.12/Wh) | 269 kWh | €32,286 |
+| Battery (€3.4/Wh) | 10.7 kWh charged | €36,271 |
+| **Total** | | **€100,841** |
 
-![Battery state of charge](assets/03_battery_soc.png)
+Generator 2 is twice as expensive per Wh, so the model uses it as little as possible. It runs at
+its 10 kW minimum most of the day and only rises in the evening, when Generator 1 is limited by
+its 5 kW/h ramp and its 40 kW maximum.
+
+### Step 5: Plot the schedule and the costs
+![Step 5 costs](assets/step5_costs_base.png)
+
+At night, both generators must run at their 10 kW minimum, but the load minus wind is lower
+than 20 kW. The surplus has nowhere to go, so the battery is forced to charge. Because the
+battery costs €3.4 per Wh, those few kilowatt-hours make the **battery the largest single cost**
+of the day. The battery never discharges, and its energy level stays around 15 kWh out of 50.
+
+### Step 6: Double the solar generation and make the battery cheaper (€1/Wh)
+![Step 6](assets/step6_schedule.png)
+
+The total cost falls by **28 %** (€100,841 → €72,556). Almost all of the saving comes from the
+cheaper battery (€36,271 → €10,668). Doubling solar saves only about €2,700 on the generators,
+because solar is small compared with the load and is gone in the evening, when demand is highest.
+
+### Step 7: Renewable share, and dirty fossil below 10 %
+![Step 7](assets/step7_energy_share.png)
+
+In the base case, renewables supply **14 %** of generation and Generator 1 (dirty fossil) supplies
+**57 %**. To push dirty fossil below 10 %, Generator 1 is penalised in two ways:
+
+```python
+gens7[0].cost = 4.0   # 0.06 -> 4 EUR/Wh: now the most expensive option, even above the battery
+gens7[0].pmin = 0     # it no longer has to run at 10 kW all day, so it can switch off
+```
+
+Dirty fossil drops to **1.6 %**. Generator 2 takes over, and the battery helps in the evening peak.
+Raising the cost alone would not be enough, because the 10 kW minimum would still force
+240 kWh of dirty fossil energy per day. (The total cost in this step includes the €4/Wh penalty,
+so it is not a real cost.)
+
+### Step 8: Reduce the costs even more
+![Step 8](assets/step8_schedule.png)
+
+Making both generators flexible (minimum 0 kW, ramp 20 kW/h) and the battery cheaper (€1/Wh)
+cuts the total cost by **49 %** (€100,841 → €51,213). The cheap Generator 1 can now follow the load
+on its own up to 40 kW. Generator 2 is only needed at the evening peak, and the battery is no
+longer forced to absorb surplus, so it is not used at all.
+
+---
+
+## Key takeaways
+* Technical limits drive the schedule as much as prices do. The minimum output and ramp limits
+  force the expensive generator to run and the battery to charge.
+* The battery's high cost per Wh made it the largest cost, even though it stored very little energy.
+* Making generators more flexible saved more money than adding solar.
+* Lowering dirty fossil generation needs both a higher price and the ability to switch the unit off.
 
 ---
 
 ## Run it yourself (VS Code)
 
 ```bash
-git clone https://github.com/<your-username>/island-microgrid-dispatch.git
+git clone https://github.com/parthivmehta1812/island-microgrid-dispatch.git
 cd island-microgrid-dispatch
 python -m venv .venv
 # Windows: .venv\Scripts\activate    macOS/Linux: source .venv/bin/activate
 pip install -r requirements.txt
-
-python run_scenarios.py      # writes figures and CSVs to ./results
-pytest -q                    # checks power balance, limits and two toy cases
+python island_dispatch.py      # prints Steps 1-8 and saves all figures to ./results
 ```
-
-To try your own ideas, change the assets in `src/microgrid/scenarios.py` (costs, sizes,
-ramps, CO2 price) or the weather in `src/microgrid/data.py`, then rerun.
 
 ```
 island-microgrid-dispatch/
-├── run_scenarios.py          # runs the full study
-├── src/microgrid/
-│   ├── model.py              # Pyomo formulation (LP / MILP)
-│   ├── data.py               # synthetic load, wind and solar profiles
-│   ├── scenarios.py          # island assets, scenarios A–D, Pareto sweep
-│   ├── results.py            # tidy tables and KPIs
-│   └── plots.py              # figures
-├── data/island_profiles.csv  # generated inputs
-├── results/                  # figures, dispatch tables, summary.csv, pareto_front.csv
-└── tests/test_model.py       # physics and limit checks
+├── island_dispatch.py      # the whole study: data, model, Steps 1-8, plots
+├── requirements.txt
+└── results/                # figures, input profile, schedules, summary.csv, report.txt
 ```
-
----
-
-## Limitations and next steps
-
-* Perfect foresight over 72 hours. A rolling-horizon or stochastic version would reflect
-  forecast errors.
-* Linear costs and constant efficiencies. Part-load efficiency curves and battery degradation
-  models would add realism.
-* Possible extensions: hydrogen storage (electrolyser + fuel cell) as a seasonal buffer,
-  capacity expansion (how much PV, wind or storage to build), and demand response.
 
 ---
 
 ## Acknowledgements
 
-The problem set-up was inspired by the optimal scheduling module of the TU Delft / DelftX
-course *Digitalization of Intelligent and Integrated Energy Systems*. The code, the island
-case, the data, the extra features (unit commitment, CO2 pricing and caps, curtailment,
-cyclic storage, Pareto analysis) and all results in this repository are my own. No course
-materials, notebooks or data are included.
+The study design and the component values come from the optimal-scheduling exercise of the
+TU Delft / DelftX course *Digitalization of Intelligent and Integrated Energy Systems*. The code
+and the 24-hour island profile are my own. No course notebooks, helper code or data are included.
 
-**Cross-check:** before building the island case, I ran this model formulation on the course's
-reference case with the course's own parameters. It reproduced the course's reference results
-exactly: the same total cost and the same hour-by-hour generator and battery schedule.
+**Cross-check:** I also ran this model on the course's reference case. It reproduced the course's
+reference results exactly: the same total cost and the same hour-by-hour generator and battery
+schedule.
 
 Author: Parthiv Mehta · [LinkedIn](https://www.linkedin.com/in/parthivmehta) · MIT License
