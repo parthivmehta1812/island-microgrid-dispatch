@@ -49,13 +49,12 @@ htmlcov/
 pyomo_tmp*/
 highs.log
 
-# ── Generated results (plots & output CSVs) ──────────────────────────────────
-# Keep the results/ folder tracked via the .gitkeep below;
-# ignore the generated files themselves.
-results/*.png
+# ── Generated results (output CSVs only) ─────────────────────────────────────
+# Plots go to assets/ (committed). Only ignore regeneratable data files here.
 results/*.csv
 results/*.pdf
-results/*.svg
+
+# assets/ is committed — do NOT add it here
 
 # ── OS artefacts ─────────────────────────────────────────────────────────────
 .DS_Store

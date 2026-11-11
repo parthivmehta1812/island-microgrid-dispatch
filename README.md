@@ -9,7 +9,7 @@ at the lowest cost. The model is then used to answer the operator's real questio
 * Is a bigger battery worth it?
 * How much more do we pay for each tonne of CO2 we avoid?
 
-![Dispatch with always-on vs. switchable generators](results/02_dispatch_A_vs_B.png)
+![Dispatch with always-on vs. switchable generators](assets/02_dispatch_A_vs_B.png)
 
 ---
 
@@ -28,7 +28,7 @@ Three days with different weather are simulated at hourly resolution: sunny and 
 windy with passing clouds, and overcast. Wind and solar together could supply about 82 %
 of the demand, but often at the wrong time.
 
-![Inputs](results/01_inputs.png)
+![Inputs](assets/01_inputs.png)
 
 All data is **synthetic and reproducible** (`src/microgrid/data.py`, fixed random seed). No
 measured or third-party data is used.
@@ -64,7 +64,7 @@ The full formulation is documented at the top of `src/microgrid/model.py`.
 | **C** B + CO2 price of €100/t | €510 | 0.21 t | 74 % | 391 kWh |
 | **D** C + double battery (400 kWh / 100 kW) | €395 | 0.10 t | 81 % | 46 kWh |
 
-![Scenario comparison](results/04_scenarios.png)
+![Scenario comparison](assets/04_scenarios.png)
 
 ### What the results show
 
@@ -82,9 +82,9 @@ The full formulation is documented at the top of `src/microgrid/model.py`.
    can drop by about **76 %** (0.98 → 0.23 t) for a **16 %** higher cost. The last tenth of a
    tonne is the expensive part.
 
-![Cost vs. emissions trade-off](results/05_pareto.png)
+![Cost vs. emissions trade-off](assets/05_pareto.png)
 
-![Battery state of charge](results/03_battery_soc.png)
+![Battery state of charge](assets/03_battery_soc.png)
 
 ---
 
