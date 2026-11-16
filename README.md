@@ -8,7 +8,7 @@ It follows the eight steps of the optimal-scheduling exercise in the TU Delft / 
 *Digitalization of Intelligent and Integrated Energy Systems*. I wrote all the code myself
 and ran it on my own 24-hour island profile.
 
-![Island Scheduling Overview](assets/Island_Scheduling_Overview.gif)
+![Island Scheduling Overview](assets/Island_Scheduling_Overview_v2.gif)
 
 ![Step 5: optimal schedule](assets/step5_schedule_base.png)
 
